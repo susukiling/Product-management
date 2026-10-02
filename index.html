@@ -133,6 +133,16 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
 :focus-visible{outline:3px solid var(--tint);outline-offset:2px}
 .finder.hit .brackets{box-shadow:inset 0 0 0 6px var(--green)}
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.btn.sec{background:var(--tint-t);color:var(--tint);border:2px solid var(--tint)}
+.chk{width:26px;height:26px;accent-color:var(--tint);flex:none}
+@media screen{
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.qrlabel{background:#fff;color:#000;border:1.5px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
+.qrlabel .qr{display:flex;justify-content:center}
+.qrlabel .qn{font-weight:700;margin-top:6px;word-break:break-all}
+.qrlabel .qs{font-size:14px;font-weight:500;color:#333}
+}
 </style>
 </head>
 <body>
@@ -187,9 +197,9 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
         <div class="gh">操作</div>
         <div class="group">
           <button class="cell btnrow" onclick="newItem()">新規登録</button>
+          <button class="cell btnrow" onclick="openQR()">QRコードを作成・保存・印刷</button>
           <button class="cell btnrow" onclick="exportItems()">在庫をCSVで書き出す</button>
           <button class="cell btnrow" onclick="exportSales()">売上をCSVで書き出す</button>
-          <button class="cell btnrow" onclick="printQR()">表示中のQRを印刷</button>
         </div>
       </div>
       <div>
@@ -234,8 +244,37 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
     <div id="qrBox" class="group pad center hidden" style="margin-top:22px">
       <div id="qrCanvas" style="display:inline-block"></div>
       <div class="mute" id="qrId"></div>
+      <button class="link" onclick="openQR($('eId').value)">このQRを保存・印刷</button>
     </div>
     <button class="destr hidden" id="delBtn" onclick="removeItem()">この登録を削除</button>
+  </div>
+</div>
+<!-- QR作成シート -->
+<div id="qrmaker" class="sheetbg hidden" onclick="if(event.target===this)closeQR()">
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheethead">
+      <button class="link" onclick="closeQR()">閉じる</button>
+      <b>QRコード作成</b>
+      <span style="width:56px"></span>
+    </div>
+    <div class="seg" id="qfseg">
+      <button class="on" data-v="" onclick="setQF('')">すべて</button>
+      <button data-v="festival" onclick="setQF('festival')">文化祭</button>
+      <button data-v="equipment" onclick="setQF('equipment')">備品</button>
+    </div>
+    <div class="row" style="justify-content:space-between;margin:0 4px 8px">
+      <span class="mute" id="qrCount">0件を選択中</span>
+      <span><button class="link" onclick="qrAll(true)">すべて選択</button><button class="link" onclick="qrAll(false)">解除</button></span>
+    </div>
+    <div class="group" id="qrList" style="max-height:34vh;overflow:auto"></div>
+    <div class="gh">プレビュー</div>
+    <div class="qrgrid" id="qrPrev"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="qrPrint" onclick="printItems(ITEMS.filter(x=>QSEL.has(x.id)))" disabled>印刷</button>
+      <button class="btn sec" id="qrPng" onclick="qrPng()" disabled>画像で保存</button>
+    </div>
+    <div class="mute" style="margin:10px 4px 0">QRの中身は商品IDです。印刷して商品や備品に貼ってください。</div>
   </div>
 </div>
 <div id="printArea"></div>
@@ -443,8 +482,65 @@ function renderList() {
      <span class="badge ${x.qty <= 3 ? 'low' : ''}">${x.qty <= 0 ? '⚠ 在庫なし' : x.qty <= 3 ? '⚠ 残り' + x.qty : x.qty + '個'}</span>${CHEV}</div>`).join('')
     : '<div class="empty"><div>該当するデータがありません</div></div>';
 }
-function printQR() {
-  const list = filtered(), area = $('printArea'); area.innerHTML = '';
+let QSEL = new Set(), QF = '';
+function labelSub(x) { return x.type === 'festival' ? yen(x.price) : (x.place || ''); }
+function qrItems() { return ITEMS.filter(x => !QF || x.type === QF); }
+function openQR(id) {
+  QSEL = new Set(id ? [id] : []); QF = '';
+  document.querySelectorAll('#qfseg button').forEach(b => b.classList.toggle('on', b.dataset.v === ''));
+  $('qrmaker').classList.remove('hidden'); renderQR();
+}
+function closeQR() { $('qrmaker').classList.add('hidden'); }
+function setQF(v) {
+  QF = v; document.querySelectorAll('#qfseg button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); renderQR();
+}
+function qrToggle(id, on) { if (on) QSEL.add(id); else QSEL.delete(id); renderQRPreview(); }
+function qrAll(on) { qrItems().forEach(x => { if (on) QSEL.add(x.id); else QSEL.delete(x.id); }); renderQR(); }
+function renderQR() {
+  const L = qrItems();
+  $('qrList').innerHTML = L.length ? L.map(x =>
+    `<label class="cell tap"><input type="checkbox" class="chk" ${QSEL.has(x.id) ? 'checked' : ''} onchange="qrToggle('${esc(x.id)}',this.checked)">${thumb(x)}
+     <div class="grow"><div class="ttl">${esc(x.name)}</div><div class="sub">${esc(labelSub(x)) || '—'} · ${esc(x.id)}</div></div></label>`).join('')
+    : '<div class="empty"><div>登録データがありません</div></div>';
+  renderQRPreview();
+}
+function renderQRPreview() {
+  const box = $('qrPrev'); box.innerHTML = '';
+  const sel = ITEMS.filter(x => QSEL.has(x.id));
+  $('qrCount').textContent = sel.length + '件を選択中';
+  $('qrPrint').disabled = $('qrPng').disabled = !sel.length;
+  sel.forEach(x => {
+    const d = document.createElement('div'); d.className = 'qrlabel';
+    d.innerHTML = '<div class="qr"></div><div class="qn">' + esc(x.name) + '</div><div class="qs">' + esc(labelSub(x)) + '</div>';
+    new QRCode(d.firstChild, { text: x.id, width: 110, height: 110 }); box.appendChild(d);
+  });
+}
+function fitText(g, t, max) {
+  t = String(t); if (g.measureText(t).width <= max) return t;
+  while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1);
+  return t + '…';
+}
+function qrPng() {
+  const sel = ITEMS.filter(x => QSEL.has(x.id)); if (!sel.length) return;
+  const cols = Math.min(3, sel.length), W = 360, H = 440, rows = Math.ceil(sel.length / cols);
+  const c = document.createElement('canvas'); c.width = cols * W; c.height = rows * H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  const tmp = document.createElement('div'), font = '"Hiragino Sans","Noto Sans JP",sans-serif';
+  sel.forEach((x, i) => {
+    tmp.innerHTML = ''; new QRCode(tmp, { text: x.id, width: 300, height: 300 });
+    const cv = tmp.querySelector('canvas'), ox = (i % cols) * W, oy = Math.floor(i / cols) * H;
+    g.strokeStyle = '#999'; g.lineWidth = 2; g.setLineDash([8, 8]); g.strokeRect(ox + 8, oy + 8, W - 16, H - 16);
+    g.drawImage(cv, ox + 30, oy + 24, 300, 300);
+    g.fillStyle = '#000'; g.textAlign = 'center';
+    g.font = 'bold 30px ' + font; g.fillText(fitText(g, x.name, W - 50), ox + W / 2, oy + 372);
+    g.font = '500 24px ' + font; g.fillText(fitText(g, labelSub(x), W - 50), ox + W / 2, oy + 410);
+  });
+  const a = document.createElement('a'); a.href = c.toDataURL('image/png');
+  a.download = sel.length === 1 ? 'QR_' + sel[0].name + '.png' : 'QR一覧.png'; a.click();
+}
+function printQR() { printItems(filtered()); }
+function printItems(list) {
+  const area = $('printArea'); area.innerHTML = '';
   list.forEach(x => {
     const d = document.createElement('div'); d.className = 'qrlabel';
     d.innerHTML = '<div class="qr"></div><div><b>' + esc(x.name) + '</b></div><div>' + (x.type === 'festival' ? yen(x.price) : esc(x.place)) + '</div>';
