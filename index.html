@@ -345,17 +345,40 @@ async function reloadItems() {
 }
 
 /* ---------- カメラ ---------- */
-async function stopScan() { if (scanner) { try { await scanner.stop(); } catch (e) {} scanner = null; } }
-async function startScan(elId, onCode) {
-  await stopScan();
-  scanner = new Html5Qrcode(elId);
-  try {
-    await scanner.start({ facingMode: 'environment' }, { fps: 10 }, code => {
+let camQueue = Promise.resolve();   // カメラの起動・停止は1つずつ順番に行う（同時に動かすと失敗するため）
+async function stopNow() {
+  if (!scanner) return;
+  try { await scanner.stop(); } catch (e) {}
+  try { scanner.clear(); } catch (e) {}
+  scanner = null;
+}
+function stopScan() { camQueue = camQueue.then(stopNow, stopNow); return camQueue; }
+function camError(e) {
+  const m = String((e && (e.message || e.name)) || e);
+  if (/NotAllowed|Permission/i.test(m)) return 'カメラの許可がありません。Safariの設定でカメラを許可してください';
+  if (/NotReadable|in use|Could not start/i.test(m)) return 'カメラを別のアプリやタブが使用中です。閉じてからやり直してください';
+  if (/NotFound|no camera/i.test(m)) return 'カメラが見つかりません';
+  return 'カメラを起動できません: ' + m;
+}
+function startScan(elId, onCode) {
+  camQueue = camQueue.then(async () => {
+    await stopNow();
+    const el = $(elId); if (!el || el.offsetWidth === 0) return;   // 非表示の画面では起動しない
+    scanner = new Html5Qrcode(elId);
+    const cb = code => {
       const now = Date.now();
       if (code === lastCode && now - lastAt < 1500) return; // 連続読み取りの防止
       lastCode = code; lastAt = now; flash(); onCode(code.trim());
-    });
-  } catch (e) { toast('カメラを起動できません: ' + (e.message || e), true); }
+    };
+    try { await scanner.start({ facingMode: 'environment' }, { fps: 10 }, cb); }
+    catch (e1) {
+      try {
+        const cams = await Html5Qrcode.getCameras(); if (!cams.length) throw e1;
+        await scanner.start(cams[cams.length - 1].id, { fps: 10 }, cb);
+      } catch (e2) { toast(camError(e2), true); }
+    }
+  }).catch(() => {});
+  return camQueue;
 }
 
 /* ---------- 画面切替 ---------- */
@@ -365,7 +388,7 @@ async function go(which) {
   $('tabPos').classList.toggle('on', which === 'pos');
   $('tabAdmin').classList.toggle('on', which === 'admin');
   if (which === 'pos') startScan('reader', onPosScan);
-  else { await stopScan(); if (PIN) startScan('areader', onAdminScan); }
+  else { await stopScan(); if (PIN) await startScan('areader', onAdminScan); }
 }
 
 /* ---------- レジ ---------- */
