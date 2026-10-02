@@ -1,571 +1,175 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="QRレジ">
-<title>QRレジ・備品管理</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<style>
-:root{--bg:#f2f2f7;--card:#fff;--fill:rgba(118,118,128,.16);--sep:rgba(60,60,67,.38);--line:#a8a8ae;--label:#000;--sub:#48484d;--tint:#0b4fc2;--tint-t:rgba(11,79,194,.12);--on-tint:#fff;--green:#17692e;--on-green:#fff;--red:#c4161c;--bar:rgba(249,249,249,.92)}
-@media(prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fill:rgba(118,118,128,.32);--sep:rgba(150,150,160,.5);--line:#636369;--label:#fff;--sub:#d1d1d6;--tint:#78b4ff;--tint-t:rgba(120,180,255,.2);--on-tint:#001a3d;--green:#4ade80;--on-green:#00210c;--red:#ff7a72;--bar:rgba(29,29,31,.92)}}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{-webkit-text-size-adjust:100%}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Hiragino Sans","Noto Sans JP",sans-serif;background:var(--bg);color:var(--label);font-size:17px;line-height:1.35;-webkit-font-smoothing:antialiased}
-main{max-width:1100px;margin:auto;padding:max(12px,env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom))}
-h1.large{font-size:34px;font-weight:700;letter-spacing:-.02em;margin:10px 4px 14px}
-.split{display:grid;grid-template-columns:minmax(280px,1fr) minmax(320px,1.1fr);gap:20px;align-items:start}
-@media(max-width:760px){.split{grid-template-columns:1fr;gap:0}}
-.gh{font-size:13px;color:var(--sub);text-transform:uppercase;letter-spacing:.02em;margin:22px 16px 7px}
-.group{background:var(--card);border-radius:12px;overflow:hidden}
-.group.pad{padding:14px 16px}
-.cell,.line{display:flex;align-items:center;gap:12px;padding:10px 16px;position:relative;min-height:52px;width:100%;border:0;background:none;font:inherit;color:inherit;text-align:left}
-.cell+.cell::before,.line+.line::before,.cell+.line::before,.line+.cell::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
-.cell:has(.thumb)+.cell::before{left:84px}
-.tap{cursor:pointer}.tap:active{background:var(--fill)}
-.grow{flex:1;min-width:0}
-.ttl{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sub{font-size:13px;color:var(--sub);margin-top:1px;font-variant-numeric:tabular-nums}
-.chev{color:rgba(60,60,67,.3);flex:none}
-.thumb{width:48px;height:48px;border-radius:10px;object-fit:cover;flex:none;background:var(--fill)}
-.thumb.big{width:64px;height:64px}
-.tile{display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px}
-.t0{background:#ff9500}.t1{background:#34c759}.t2{background:#32ade6}.t3{background:#af52de}.t4{background:#ff2d55}.t5{background:#5856d6}
-.line{justify-content:space-between}
-.line>span:first-child{flex:none}
-.line input,.line select{flex:1;width:auto;min-width:0;text-align:right;border:0;background:transparent;padding:6px 0;font:inherit;color:var(--label);outline:none;-webkit-appearance:none;appearance:none;border-radius:0}
-.line select{direction:rtl;color:var(--tint)}
-.line .big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.change{font-size:22px;font-weight:700;color:var(--green);font-variant-numeric:tabular-nums}
-.change.neg{color:var(--red)}
-#paid{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
-textarea{width:100%;border:0;background:transparent;font:inherit;color:var(--label);padding:12px 16px;outline:none;resize:none;display:block}
-input[type=file]{font-size:14px;color:var(--sub);flex:1;min-width:0}
-.empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:34px 16px;color:var(--sub);font-size:15px;text-align:center}
-.stepper{display:flex;align-items:center;background:var(--fill);border-radius:9px;overflow:hidden;flex:none}
-.stepper button{border:0;background:none;color:var(--tint);width:38px;height:34px;font-size:20px;line-height:1}
-.stepper button:active{background:var(--fill)}
-.stepper .n{min-width:30px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums;border-left:.5px solid var(--sep);border-right:.5px solid var(--sep);height:34px;line-height:34px}
-.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
-.key{border:0;background:var(--card);border-radius:12px;padding:15px 0;font:inherit;font-weight:600;font-variant-numeric:tabular-nums;color:var(--label);cursor:pointer}
-.key:active{background:var(--fill);transform:scale(.97)}
-.key.t{color:var(--tint);background:var(--tint-t)}
-.key.r{color:var(--red)}
-.btn{display:block;width:100%;border:0;border-radius:14px;padding:17px;font:inherit;font-size:18px;font-weight:600;background:var(--tint);color:#fff;cursor:pointer;transition:transform .12s,opacity .12s}
-.btn:active{transform:scale(.98);opacity:.85}
-.btn.pay{background:var(--green)}
-.btn:disabled{opacity:.3}
-.link{border:0;background:none;color:var(--tint);font:inherit;padding:10px 4px;cursor:pointer}
-.link.red{color:var(--red);display:block;margin:6px auto 0}
-.link.strong{font-weight:600}
-.btnrow{color:var(--tint);cursor:pointer}.btnrow:active{background:var(--fill)}
-.destr{display:block;width:100%;margin-top:22px;border:0;background:var(--card);color:var(--red);font:inherit;padding:14px;border-radius:12px;cursor:pointer}
-.finder{position:relative;border-radius:20px;overflow:hidden;background:#000;aspect-ratio:4/3;min-height:220px}
-#reader,#areader{width:100%;height:100%}
-#reader video,#areader video{object-fit:cover}
-.brackets{position:absolute;inset:0;pointer-events:none;border-radius:20px;transition:box-shadow .2s;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'%3E%3Cpath d='M3 40V20a17 17 0 0 1 17-17h20M180 3h20a17 17 0 0 1 17 17v20M217 180v20a17 17 0 0 1-17 17h-20M40 217H20A17 17 0 0 1 3 200v-20'/%3E%3C/svg%3E") center/min(220px,70%) no-repeat}
-.finder.hit .brackets{box-shadow:inset 0 0 0 5px var(--green)}
-.info{background:var(--card);border-radius:12px;padding:14px 16px;margin-top:12px;line-height:1.7;font-size:15px}
-.search{display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:10px;padding:0 10px;color:var(--sub)}
-.search input{flex:1;border:0;background:none;font:inherit;color:var(--label);padding:9px 0;outline:none}
-.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;margin:10px 0 14px}
-.seg button{flex:1;border:0;background:none;color:var(--label);padding:6px 0;font:inherit;font-size:14px;font-weight:500;border-radius:7px;cursor:pointer}
-.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.14);font-weight:600}
-.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:14px;font-weight:600;background:var(--fill);font-variant-numeric:tabular-nums}
-.badge.low{background:rgba(255,59,48,.15);color:var(--red)}
-.tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bar);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);padding-bottom:env(safe-area-inset-bottom);z-index:10}
-.tab{flex:1;border:0;background:none;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px;padding:7px 0 5px;font:inherit;font-size:10px;font-weight:500;cursor:pointer}
-.tab.on{color:var(--tint)}
-.sheetbg{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center;z-index:30}
-.sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;background:var(--bg);border-radius:14px 14px 0 0;padding:8px 16px calc(28px + env(safe-area-inset-bottom));animation:up .28s cubic-bezier(.2,.9,.3,1)}
-@keyframes up{from{transform:translateY(100%)}}
-@media(min-width:760px){.sheetbg{align-items:center}.sheet{border-radius:14px;max-height:88vh}}
-.grab{width:36px;height:5px;border-radius:3px;background:var(--sep);margin:0 auto 6px}
-.sheethead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
-.sheethead b{font-size:17px}
-.center{text-align:center}
-.toast{position:fixed;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);background:rgba(44,44,46,.9);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);color:#fff;padding:11px 20px;border-radius:30px;z-index:50;max-width:90%;font-size:15px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.25)}
-.toast.err{background:rgba(255,59,48,.94)}
-.row{display:flex;gap:12px;align-items:center}
-.mute{color:var(--sub);font-size:13px}
-.hidden{display:none!important}
-#printArea{display:none}
-@media print{body>*:not(#printArea){display:none!important}#printArea{display:grid;grid-template-columns:repeat(3,1fr);gap:8mm}
-.qrlabel{border:1px dashed #999;padding:4mm;text-align:center;font-size:11pt;break-inside:avoid;color:#000}.qrlabel div.qr{display:flex;justify-content:center}}
+/**
+ * QR在庫管理・レジ  バックエンド (Google Apps Script)
+ * 初期設定: setup() を1回実行 → 管理者PINとスプレッドシートが用意される
+ */
+const ITEM_HEADERS = ['ID', '種別', '名前', '写真URL', '個数', '保管場所', '単価', 'メモ', '更新日時', 'QR名'];
+const SALE_HEADERS = ['日時', '伝票ID', 'ID', '名前', '数量', '単価', '小計'];
+const PUBLIC_FNS = ['getItems', 'getItem', 'checkout'];
+const ADMIN_FNS = ['saveItem', 'deleteItem', 'uploadPhoto', 'getSales', 'adjustStock'];
 
-/* ===== ユニバーサルデザイン：太字・高コントラスト・大きな操作面・色だけに頼らない表示 ===== */
-body{font-size:18px;font-weight:500}
-h1.large{font-weight:800;font-size:36px}
-.gh{font-size:14px;font-weight:700}
-.group,.key,.info,.search,.destr,.stepper{border:1.5px solid var(--line)}
-.ttl{font-weight:700}
-.sub,.mute{font-size:15px;font-weight:500;color:var(--sub)}
-.cell,.line{min-height:60px;font-weight:600}
-.line .big{font-weight:800;font-size:34px}
-.change,#paid{font-weight:800}
-.change{font-size:26px}
-.key{padding:19px 0;font-size:19px;font-weight:700}
-.key.t,.btnrow{color:var(--tint)}
-.btn{font-weight:700;min-height:56px;color:var(--on-tint)}
-.btn.pay{color:var(--on-green)}
-.btn:disabled{opacity:.45}
-.link{font-weight:700;min-height:44px}
-.stepper button{width:48px;height:44px;font-weight:700}
-.stepper .n{min-width:36px;height:44px;line-height:44px;font-size:19px;font-weight:800}
-.seg button{padding:10px 0;font-size:16px;font-weight:700}
-.seg button.on{outline:2px solid var(--tint);outline-offset:-2px}
-.tab{font-size:12px;font-weight:700;padding:8px 0 6px;position:relative}
-.tab.on::after{content:"";position:absolute;top:0;left:25%;right:25%;height:3px;border-radius:0 0 3px 3px;background:var(--tint)}
-.badge{font-size:16px;font-weight:800}
-.badge.low{color:var(--red);outline:2px solid var(--red)}
-.thumb{width:52px;height:52px}
-.tile{font-weight:800}
-.t0{background:#a33b00}.t1{background:#17692e}.t2{background:#0b5ea8}.t3{background:#7a2fb0}.t4{background:#b3123f}.t5{background:#3f3db3}
-.chev{color:var(--sub)}
-.line select{font-weight:700}
-.empty{font-size:16px;font-weight:600}
-input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
-.toast{font-size:16px;font-weight:700}
-.toast.err{background:#b3121a}
-:focus-visible{outline:3px solid var(--tint);outline-offset:2px}
-.finder.hit .brackets{box-shadow:inset 0 0 0 6px var(--green)}
-@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
-
-.btn.sec{background:var(--tint-t);color:var(--tint);border:2px solid var(--tint)}
-.chk{width:26px;height:26px;accent-color:var(--tint);flex:none}
-@media screen{
-.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
-.qrlabel{background:#fff;color:#000;border:1.5px solid var(--line);border-radius:12px;padding:10px 6px;text-align:center}
-.qrlabel .qr{display:flex;justify-content:center}
-.qrlabel .qn{font-weight:700;margin-top:6px;word-break:break-all}
-.qrlabel .qs{font-size:14px;font-weight:500;color:#333}
-}
-</style>
-</head>
-<body>
-<main>
-<!-- ===== 一般画面（レジ） ===== -->
-<section id="pos">
-  <h1 class="large">レジ</h1>
-  <div class="split">
-    <div>
-      <div class="finder"><div id="reader"></div><div class="brackets"></div></div>
-      <div id="equipInfo"></div>
-      <button class="link" onclick="reloadItems()">商品データを更新</button>
-    </div>
-    <div>
-      <div class="gh" style="margin-top:4px">カート</div>
-      <div class="group" id="cart"></div>
-      <div class="gh">お会計</div>
-      <div class="group">
-        <div class="line"><span>合計</span><span class="big" id="total">¥0</span></div>
-        <div class="line"><span>預かり</span><input id="paid" type="number" inputmode="numeric" placeholder="0" oninput="calcChange()"></div>
-        <div class="line"><span>お釣り</span><span class="change" id="change">—</span></div>
-      </div>
-      <div class="keys">
-        <button class="key" onclick="addPaid(1)">1</button>
-        <button class="key" onclick="addPaid(10)">10</button>
-        <button class="key" onclick="addPaid(100)">100</button>
-        <button class="key" onclick="addPaid(500)">500</button>
-        <button class="key" onclick="addPaid(1000)">1000</button>
-        <button class="key" onclick="addPaid(5000)">5000</button>
-        <button class="key t" onclick="exactPaid()">ちょうど</button>
-        <button class="key r" onclick="clearPaid()">クリア</button>
-      </div>
-      <button class="btn pay" id="payBtn" onclick="pay()" disabled>支払いを確定</button>
-      <button class="link red" onclick="clearCart()">カートを空にする</button>
-    </div>
-  </div>
-</section>
-
-<!-- ===== 管理者画面 ===== -->
-<section id="admin" class="hidden">
-  <h1 class="large">管理</h1>
-  <div id="gate" style="max-width:420px;margin:auto">
-    <div class="gh" style="margin-top:4px">管理者PIN</div>
-    <div class="group"><div class="line"><span>PIN</span><input id="pin" type="password" inputmode="numeric" placeholder="入力してください"></div></div>
-    <button class="btn" style="margin-top:16px" onclick="login()">開く</button>
-  </div>
-  <div id="panel" class="hidden">
-    <div class="split">
-      <div>
-        <div class="finder"><div id="areader"></div><div class="brackets"></div></div>
-        <div class="mute" style="margin:8px 6px 0">QRをかざすと、その商品の編集画面が開きます</div>
-        <div class="gh">操作</div>
-        <div class="group">
-          <button class="cell btnrow" onclick="newItem()">新規登録</button>
-          <button class="cell btnrow" onclick="openQR()">QRコードを作成・保存・印刷</button>
-          <button class="cell btnrow" onclick="exportItems()">在庫をCSVで書き出す</button>
-          <button class="cell btnrow" onclick="exportSales()">売上をCSVで書き出す</button>
-        </div>
-      </div>
-      <div>
-        <div class="search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input id="q" placeholder="名前・場所・IDで検索" oninput="renderList()">
-        </div>
-        <input type="hidden" id="f" value="">
-        <div class="seg" id="fseg">
-          <button class="on" data-v="" onclick="setF('')">すべて</button>
-          <button data-v="festival" onclick="setF('festival')">文化祭</button>
-          <button data-v="equipment" onclick="setF('equipment')">備品</button>
-        </div>
-        <div class="group" id="list"></div>
-      </div>
-    </div>
-  </div>
-</section>
-</main>
-
-<!-- 登録・編集シート -->
-<div id="editor" class="sheetbg hidden" onclick="if(event.target===this)closeEditor()">
-  <div class="sheet">
-    <div class="grab"></div>
-    <div class="sheethead">
-      <button class="link" onclick="closeEditor()">キャンセル</button>
-      <b id="editTitle">登録</b>
-      <button class="link strong" onclick="saveItem()">保存</button>
-    </div>
-    <input type="hidden" id="eId">
-    <div class="group">
-      <div class="line"><span>種別</span><select id="eType"><option value="festival">文化祭（販売）</option><option value="equipment">パソコン部（備品）</option></select></div>
-      <div class="line"><span>名前</span><input id="eName" placeholder="必須"></div>
-      <div class="line"><span>個数</span><input id="eQty" type="number" inputmode="numeric" value="1"></div>
-      <div class="line"><span>単価（円）</span><input id="ePrice" type="number" inputmode="numeric" value="0"></div>
-      <div class="line"><span>保管場所</span><input id="ePlace" placeholder="例: 部室の棚A"></div>
-    </div>
-    <div class="gh">写真</div>
-    <div class="group pad"><div class="row"><img id="ePhotoPrev" class="thumb big hidden" alt=""><input type="file" id="eFile" accept="image/*" capture="environment"></div></div>
-    <div class="gh">メモ</div>
-    <div class="group"><textarea id="eMemo" rows="3" placeholder="貸出中: ○○君 など"></textarea></div>
-    <div id="qrBox" class="group pad center hidden" style="margin-top:22px">
-      <div id="qrCanvas" style="display:inline-block"></div>
-      <div class="mute" id="qrId"></div>
-      <button class="link" onclick="openQR($('eId').value)">このQRを保存・印刷</button>
-    </div>
-    <button class="destr hidden" id="delBtn" onclick="removeItem()">この登録を削除</button>
-  </div>
-</div>
-<!-- QR作成シート -->
-<div id="qrmaker" class="sheetbg hidden" onclick="if(event.target===this)closeQR()">
-  <div class="sheet">
-    <div class="grab"></div>
-    <div class="sheethead">
-      <button class="link" onclick="closeQR()">閉じる</button>
-      <b>QRコード作成</b>
-      <span style="width:56px"></span>
-    </div>
-    <div class="seg" id="qfseg">
-      <button class="on" data-v="" onclick="setQF('')">すべて</button>
-      <button data-v="festival" onclick="setQF('festival')">文化祭</button>
-      <button data-v="equipment" onclick="setQF('equipment')">備品</button>
-    </div>
-    <div class="row" style="justify-content:space-between;margin:0 4px 8px">
-      <span class="mute" id="qrCount">0件を選択中</span>
-      <span><button class="link" onclick="qrAll(true)">すべて選択</button><button class="link" onclick="qrAll(false)">解除</button></span>
-    </div>
-    <div class="group" id="qrList" style="max-height:34vh;overflow:auto"></div>
-    <div class="gh">プレビュー</div>
-    <div class="qrgrid" id="qrPrev"></div>
-    <div class="row" style="margin-top:18px">
-      <button class="btn" id="qrPrint" onclick="printItems(ITEMS.filter(x=>QSEL.has(x.id)))" disabled>印刷</button>
-      <button class="btn sec" id="qrPng" onclick="qrPng()" disabled>画像で保存</button>
-    </div>
-    <div class="mute" style="margin:10px 4px 0">QRの中身は商品IDです。印刷して商品や備品に貼ってください。</div>
-  </div>
-</div>
-<div id="printArea"></div>
-
-<nav class="tabbar">
-  <button class="tab on" id="tabPos" onclick="go('pos')">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M8 12h8"/></svg>レジ</button>
-  <button class="tab" id="tabAdmin" onclick="go('admin')">
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>管理</button>
-</nav>
-
-<script>
-/* GitHub Pages などGAS外で動かす場合だけ、デプロイしたWebアプリのURL(/exec)を入れる */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycby3agrL74sfDuZCU_g6gxgl_xd32zOrIImz31yPu1V7VC9wNFR1gKD7w6BBVLuD3sXJlw/exec';
-
-let ITEMS = [], CART = [], PIN = '', scanner = null, lastCode = '', lastAt = 0;
-const $ = id => document.getElementById(id);
-const yen = n => '¥' + Number(n).toLocaleString();
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function thumb(it) {
-  if (it.photo) return `<img class="thumb" src="${esc(it.photo)}" alt="">`;
-  const h = [...String(it.id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
-  return `<div class="thumb tile t${h}">${esc((it.name || '?').slice(0, 1))}</div>`;
-}
-function flash() {
-  document.querySelectorAll('.finder').forEach(f => { f.classList.add('hit'); setTimeout(() => f.classList.remove('hit'), 350); });
-}
-function setF(v) {
-  $('f').value = v;
-  document.querySelectorAll('#fseg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
-  renderList();
-}
-const CHEV = '<svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
-function api(fn, args, usePin) {
-  args = args || [];
-  const pin = usePin ? PIN : '';
-  return new Promise((resolve, reject) => {
-    if (window.google && google.script && google.script.run) {
-      google.script.run.withSuccessHandler(resolve).withFailureHandler(e => reject(new Error(e.message || e)))
-        .dispatch(fn, args, pin);
-    } else if (GAS_URL) {
-      fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ fn, args, pin }) })
-        .then(r => r.json()).then(j => j.ok ? resolve(j.data) : reject(new Error(j.error))).catch(reject);
-    } else reject(new Error('GAS_URL が未設定です'));
-  });
-}
-function toast(msg, err) {
-  document.querySelectorAll('.toast').forEach(x => x.remove());
-  const t = document.createElement('div'); t.className = 'toast' + (err ? ' err' : ''); t.textContent = (err ? '⚠ ' : '') + msg; t.setAttribute('role', 'status');
-  document.body.appendChild(t); setTimeout(() => t.remove(), err ? 4000 : 1800);
-}
-async function reloadItems() {
-  try { ITEMS = await api('getItems'); renderList(); toast('商品データを更新しました'); } catch (e) { toast(e.message, true); }
-}
-
-/* ---------- カメラ ---------- */
-async function stopScan() { if (scanner) { try { await scanner.stop(); } catch (e) {} scanner = null; } }
-async function startScan(elId, onCode) {
-  await stopScan();
-  scanner = new Html5Qrcode(elId);
-  try {
-    await scanner.start({ facingMode: 'environment' }, { fps: 10 }, code => {
-      const now = Date.now();
-      if (code === lastCode && now - lastAt < 1500) return; // 連続読み取りの防止
-      lastCode = code; lastAt = now; flash(); onCode(code.trim());
-    });
-  } catch (e) { toast('カメラを起動できません: ' + (e.message || e), true); }
-}
-
-/* ---------- 画面切替 ---------- */
-async function go(which) {
-  $('pos').classList.toggle('hidden', which !== 'pos');
-  $('admin').classList.toggle('hidden', which !== 'admin');
-  $('tabPos').classList.toggle('on', which === 'pos');
-  $('tabAdmin').classList.toggle('on', which === 'admin');
-  if (which === 'pos') startScan('reader', onPosScan);
-  else { await stopScan(); if (PIN) startScan('areader', onAdminScan); }
-}
-
-/* ---------- レジ ---------- */
-function onPosScan(id) {
-  const it = ITEMS.find(x => x.id === id);
-  if (!it) return toast('未登録のQRです', true);
-  if (it.type === 'equipment') {
-    $('equipInfo').innerHTML = `<div class="info"><b>${esc(it.name)}</b><br>保管場所: ${esc(it.place) || '未設定'}<br>状態・メモ: ${esc(it.memo) || 'なし'}<br>個数: ${it.qty}</div>`;
-    return;
+function setup() {
+  const props = PropertiesService.getScriptProperties();
+  if (!props.getProperty('ADMIN_PIN')) props.setProperty('ADMIN_PIN', '1234'); // 必ず変更する
+  const ss = getSS_();
+  sheet_(ss, 'items', ITEM_HEADERS);
+  sheet_(ss, 'sales', SALE_HEADERS);
+  if (!props.getProperty('PHOTO_FOLDER')) {
+    const f = DriveApp.createFolder('QR在庫管理_写真');
+    props.setProperty('PHOTO_FOLDER', f.getId());
   }
-  const line = CART.find(c => c.id === id);
-  if ((line ? line.qty : 0) + 1 > it.qty) return toast(it.name + ' は在庫が足りません（残り' + it.qty + '個）', true);
-  if (line) line.qty++; else CART.push({ id, qty: 1 });
-  $('equipInfo').innerHTML = '';
-  renderCart();
-  toast('✓ ' + it.name + ' を追加');
-}
-function cartTotal() { return CART.reduce((s, c) => s + (ITEMS.find(x => x.id === c.id)?.price || 0) * c.qty, 0); }
-function renderCart() {
-  if (!CART.length) $('cart').innerHTML = '<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h8.8a1 1 0 0 0 1-.8L20 8H6"/><circle cx="9" cy="20" r="1.2"/><circle cx="17" cy="20" r="1.2"/></svg><div>QRをかざすと商品が追加されます</div></div>';
-  else $('cart').innerHTML = CART.map((c, i) => {
-    const it = ITEMS.find(x => x.id === c.id);
-    return `<div class="cell">${thumb(it)}<div class="grow"><div class="ttl">${esc(it.name)}</div><div class="sub">${yen(it.price)} × ${c.qty} = ${yen(it.price * c.qty)}</div></div>
-      <div class="stepper"><button onclick="chg(${i},-1)" aria-label="減らす">−</button><span class="n">${c.qty}</span><button onclick="chg(${i},1)" aria-label="増やす">＋</button></div></div>`;
-  }).join('');
-  $('total').textContent = yen(cartTotal());
-  $('payBtn').disabled = !CART.length;
-  $('payBtn').textContent = CART.length ? '支払いを確定　' + yen(cartTotal()) : '支払いを確定';
-  calcChange();
-}
-function chg(i, d) {
-  const c = CART[i], it = ITEMS.find(x => x.id === c.id);
-  if (c.qty + d > it.qty) return toast('在庫が足りません', true);
-  c.qty += d; if (c.qty <= 0) CART.splice(i, 1);
-  renderCart();
-}
-function addPaid(v) { $('paid').value = (Number($('paid').value) || 0) + v; calcChange(); }
-function exactPaid() { $('paid').value = cartTotal(); calcChange(); }
-function clearPaid() { $('paid').value = ''; calcChange(); }
-function calcChange() {
-  const paid = Number($('paid').value), t = cartTotal(), el = $('change');
-  if (!$('paid').value) { el.textContent = '—'; el.className = 'change'; return; }
-  const d = paid - t; el.textContent = d >= 0 ? yen(d) : '不足 ' + yen(-d); el.className = 'change' + (d < 0 ? ' neg' : '');
-}
-function clearCart() { CART = []; $('paid').value = ''; renderCart(); }
-async function pay() {
-  if (!CART.length) return;
-  const paid = Number($('paid').value);
-  if ($('paid').value && paid < cartTotal()) return toast('預かり金額が足りません', true);
-  $('payBtn').disabled = true;
-  try {
-    const r = await api('checkout', [CART]);
-    toast('会計完了 ' + yen(r.total));
-    clearCart(); ITEMS = await api('getItems');
-  } catch (e) { toast(e.message, true); ITEMS = await api('getItems').catch(() => ITEMS); renderCart(); }
 }
 
-/* ---------- 管理 ---------- */
-async function login() {
-  PIN = $('pin').value;
-  try {
-    if (!(await api('verifyPin', [], true))) { PIN = ''; return toast('PINが違います', true); }
-    $('gate').classList.add('hidden'); $('panel').classList.remove('hidden');
-    renderList(); startScan('areader', onAdminScan);
-  } catch (e) { PIN = ''; toast(e.message, true); }
-}
-function onAdminScan(id) {
-  const it = ITEMS.find(x => x.id === id);
-  if (it) openEditor(it); else { openEditor({ id: '', type: 'festival', qty: 1, price: 0 }); toast('未登録のQRです。新規登録できます'); }
-}
-function newItem() { openEditor({ id: '', type: 'festival', name: '', photo: '', qty: 1, price: 0, place: '', memo: '' }); }
-function openEditor(it) {
-  $('editor').classList.remove('hidden');
-  $('editTitle').textContent = it.id ? '編集: ' + it.id : '新規登録';
-  $('eId').value = it.id || ''; $('eType').value = it.type || 'festival'; $('eName').value = it.name || '';
-  $('eQty').value = it.qty ?? 1; $('ePrice').value = it.price ?? 0; $('ePlace').value = it.place || ''; $('eMemo').value = it.memo || '';
-  $('eFile').value = ''; $('eFile').dataset.photo = it.photo || '';
-  $('ePhotoPrev').src = it.photo || ''; $('ePhotoPrev').classList.toggle('hidden', !it.photo);
-  $('delBtn').classList.toggle('hidden', !it.id);
-  showQR(it.id);
-}
-function closeEditor() { $('editor').classList.add('hidden'); }
-function showQR(id) {
-  $('qrCanvas').innerHTML = ''; $('qrBox').classList.toggle('hidden', !id);
-  if (!id) return;
-  new QRCode($('qrCanvas'), { text: id, width: 160, height: 160 }); $('qrId').textContent = id;
-}
-function resizeImage(file, max) {
-  return new Promise((resolve, reject) => {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = () => {
-      const s = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
-      c.width = img.width * s; c.height = img.height * s; c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      resolve(c.toDataURL('image/jpeg', 0.8).split(',')[1]); URL.revokeObjectURL(url);
-    };
-    img.onerror = reject; img.src = url;
-  });
-}
-async function saveItem() {
-  if (!$('eName').value.trim()) return toast('名前を入力してください', true);
-  try {
-    let photo = $('eFile').dataset.photo || '';
-    const f = $('eFile').files[0];
-    if (f) { toast('写真を保存中…'); photo = await api('uploadPhoto', [await resizeImage(f, 800), 'image/jpeg', f.name], true); }
-    const saved = await api('saveItem', [{
-      id: $('eId').value, type: $('eType').value, name: $('eName').value.trim(), photo,
-      qty: $('eQty').value, price: $('ePrice').value, place: $('ePlace').value, memo: $('eMemo').value
-    }], true);
-    ITEMS = await api('getItems'); renderList(); openEditor(saved); toast('保存しました');
-  } catch (e) { toast(e.message, true); }
-}
-async function removeItem() {
-  if (!confirm('本当に削除しますか？')) return;
-  try { await api('deleteItem', [$('eId').value], true); ITEMS = await api('getItems'); renderList(); closeEditor(); toast('削除しました'); }
-  catch (e) { toast(e.message, true); }
-}
-function filtered() {
-  const q = $('q').value.trim().toLowerCase(), f = $('f').value;
-  return ITEMS.filter(x => (!f || x.type === f) && (!q || [x.name, x.place, x.id, x.memo].join(' ').toLowerCase().includes(q)));
-}
-function renderList() {
-  if (!$('list')) return;
-  const L = filtered();
-  $('list').innerHTML = L.length ? L.map(x =>
-    `<div class="cell tap" onclick="openEditor(ITEMS.find(i=>i.id==='${esc(x.id)}'))">${thumb(x)}
-     <div class="grow"><div class="ttl">${esc(x.name)}</div><div class="sub">${x.type === 'festival' ? yen(x.price) : (esc(x.place) || '場所未設定')} · ${esc(x.id)}</div></div>
-     <span class="badge ${x.qty <= 3 ? 'low' : ''}">${x.qty <= 0 ? '⚠ 在庫なし' : x.qty <= 3 ? '⚠ 残り' + x.qty : x.qty + '個'}</span>${CHEV}</div>`).join('')
-    : '<div class="empty"><div>該当するデータがありません</div></div>';
-}
-let QSEL = new Set(), QF = '';
-function labelSub(x) { return x.type === 'festival' ? yen(x.price) : (x.place || ''); }
-function qrItems() { return ITEMS.filter(x => !QF || x.type === QF); }
-function openQR(id) {
-  QSEL = new Set(id ? [id] : []); QF = '';
-  document.querySelectorAll('#qfseg button').forEach(b => b.classList.toggle('on', b.dataset.v === ''));
-  $('qrmaker').classList.remove('hidden'); renderQR();
-}
-function closeQR() { $('qrmaker').classList.add('hidden'); }
-function setQF(v) {
-  QF = v; document.querySelectorAll('#qfseg button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); renderQR();
-}
-function qrToggle(id, on) { if (on) QSEL.add(id); else QSEL.delete(id); renderQRPreview(); }
-function qrAll(on) { qrItems().forEach(x => { if (on) QSEL.add(x.id); else QSEL.delete(x.id); }); renderQR(); }
-function renderQR() {
-  const L = qrItems();
-  $('qrList').innerHTML = L.length ? L.map(x =>
-    `<label class="cell tap"><input type="checkbox" class="chk" ${QSEL.has(x.id) ? 'checked' : ''} onchange="qrToggle('${esc(x.id)}',this.checked)">${thumb(x)}
-     <div class="grow"><div class="ttl">${esc(x.name)}</div><div class="sub">${esc(labelSub(x)) || '—'} · ${esc(x.id)}</div></div></label>`).join('')
-    : '<div class="empty"><div>登録データがありません</div></div>';
-  renderQRPreview();
-}
-function renderQRPreview() {
-  const box = $('qrPrev'); box.innerHTML = '';
-  const sel = ITEMS.filter(x => QSEL.has(x.id));
-  $('qrCount').textContent = sel.length + '件を選択中';
-  $('qrPrint').disabled = $('qrPng').disabled = !sel.length;
-  sel.forEach(x => {
-    const d = document.createElement('div'); d.className = 'qrlabel';
-    d.innerHTML = '<div class="qr"></div><div class="qn">' + esc(x.name) + '</div><div class="qs">' + esc(labelSub(x)) + '</div>';
-    new QRCode(d.firstChild, { text: x.id, width: 110, height: 110 }); box.appendChild(d);
-  });
-}
-function fitText(g, t, max) {
-  t = String(t); if (g.measureText(t).width <= max) return t;
-  while (t.length > 1 && g.measureText(t + '…').width > max) t = t.slice(0, -1);
-  return t + '…';
-}
-function qrPng() {
-  const sel = ITEMS.filter(x => QSEL.has(x.id)); if (!sel.length) return;
-  const cols = Math.min(3, sel.length), W = 360, H = 440, rows = Math.ceil(sel.length / cols);
-  const c = document.createElement('canvas'); c.width = cols * W; c.height = rows * H;
-  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
-  const tmp = document.createElement('div'), font = '"Hiragino Sans","Noto Sans JP",sans-serif';
-  sel.forEach((x, i) => {
-    tmp.innerHTML = ''; new QRCode(tmp, { text: x.id, width: 300, height: 300 });
-    const cv = tmp.querySelector('canvas'), ox = (i % cols) * W, oy = Math.floor(i / cols) * H;
-    g.strokeStyle = '#999'; g.lineWidth = 2; g.setLineDash([8, 8]); g.strokeRect(ox + 8, oy + 8, W - 16, H - 16);
-    g.drawImage(cv, ox + 30, oy + 24, 300, 300);
-    g.fillStyle = '#000'; g.textAlign = 'center';
-    g.font = 'bold 30px ' + font; g.fillText(fitText(g, x.name, W - 50), ox + W / 2, oy + 372);
-    g.font = '500 24px ' + font; g.fillText(fitText(g, labelSub(x), W - 50), ox + W / 2, oy + 410);
-  });
-  const a = document.createElement('a'); a.href = c.toDataURL('image/png');
-  a.download = sel.length === 1 ? 'QR_' + sel[0].name + '.png' : 'QR一覧.png'; a.click();
-}
-function printQR() { printItems(filtered()); }
-function printItems(list) {
-  const area = $('printArea'); area.innerHTML = '';
-  list.forEach(x => {
-    const d = document.createElement('div'); d.className = 'qrlabel';
-    d.innerHTML = '<div class="qr"></div><div><b>' + esc(x.name) + '</b></div><div>' + (x.type === 'festival' ? yen(x.price) : esc(x.place)) + '</div>';
-    new QRCode(d.firstChild, { text: x.id, width: 120, height: 120 }); area.appendChild(d);
-  });
-  setTimeout(() => window.print(), 300);
-}
-function csv(rows, name) {
-  const body = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\r\n');
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob(['\ufeff' + body], { type: 'text/csv' })); a.download = name; a.click();
-}
-function exportItems() {
-  csv([['ID', '種別', '名前', '個数', '保管場所', '単価', 'メモ']].concat(filtered().map(x => [x.id, x.type, x.name, x.qty, x.place, x.price, x.memo])), '在庫.csv');
-}
-async function exportSales() {
-  try { csv([['日時', '伝票ID', 'ID', '名前', '数量', '単価', '小計']].concat(await api('getSales', [], true)), '売上.csv'); }
-  catch (e) { toast(e.message, true); }
+function getSS_() {
+  const props = PropertiesService.getScriptProperties();
+  let id = props.getProperty('SS_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  const active = SpreadsheetApp.getActiveSpreadsheet(); // スプレッドシートに紐付けた場合
+  if (active) { props.setProperty('SS_ID', active.getId()); return active; }
+  const ss = SpreadsheetApp.create('QR在庫管理DB');
+  props.setProperty('SS_ID', ss.getId());
+  return ss;
 }
 
-/* 起動 */
-(async function () {
-  try { ITEMS = await api('getItems'); } catch (e) { toast(e.message, true); }
-  startScan('reader', onPosScan);
-})();
-</script>
-</body>
-</html>
+function sheet_(ss, name, headers) {
+  let sh = ss.getSheetByName(name);
+  if (!sh) {
+    sh = ss.insertSheet(name);
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+    sh.setFrozenRows(1);
+  } else if (sh.getLastColumn() < headers.length) {
+    // 既存シートに新しい列(QR名など)を足す
+    sh.getRange(1, 1, 1, headers.length).setValues([headers]).setFontWeight('bold');
+  }
+  return sh;
+}
+
+// ---- Webアプリ入口 ----
+function doGet() {
+  try {
+    return HtmlService.createHtmlOutputFromFile('index')
+      .setTitle('QRレジ・備品管理')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch (e) {
+    // GitHub Pages で画面を配信する構成では、GAS側に index.html は不要（APIとして動作）
+    return ContentService.createTextOutput('QR在庫管理 API is running');
+  }
+}
+
+// GitHub Pages など外部ホストから呼ぶ場合用 (Content-Type: text/plain で JSON を送る)
+function doPost(e) {
+  let out;
+  try {
+    const req = JSON.parse(e.postData.contents);
+    out = { ok: true, data: dispatch(req.fn, req.args || [], req.pin) };
+  } catch (err) {
+    out = { ok: false, error: String(err.message || err) };
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// google.script.run からはこの1関数だけを呼ぶ
+function dispatch(fn, args, pin) {
+  if (ADMIN_FNS.indexOf(fn) >= 0) requirePin_(pin);
+  else if (PUBLIC_FNS.indexOf(fn) < 0 && fn !== 'verifyPin') throw new Error('不明な操作です');
+  if (fn === 'verifyPin') return verifyPin_(pin);
+  return this[fn + '_'].apply(null, args);
+}
+
+function verifyPin_(pin) {
+  return String(pin) === PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
+}
+function requirePin_(pin) {
+  if (!verifyPin_(pin)) throw new Error('管理者PINが違います');
+}
+
+// ---- データ操作 ----
+function readItems_() {
+  const sh = sheet_(getSS_(), 'items', ITEM_HEADERS);
+  const rows = sh.getDataRange().getValues().slice(1);
+  return rows.filter(r => r[0] !== '').map((r, i) => ({
+    row: i + 2, id: String(r[0]), type: r[1], name: r[2], photo: r[3],
+    qty: Number(r[4]) || 0, place: r[5], price: Number(r[6]) || 0, memo: r[7], label: r[9] || '',
+    updated: r[8] ? Utilities.formatDate(new Date(r[8]), 'Asia/Tokyo', 'M/d HH:mm') : ''
+  }));
+}
+
+function getItems_() { return readItems_(); }
+function getItem_(id) { return readItems_().filter(x => x.id === id)[0] || null; }
+
+function saveItem_(item) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const sh = sheet_(getSS_(), 'items', ITEM_HEADERS);
+    const existing = item.id ? getItem_(item.id) : null;
+    const id = item.id || ((item.type === 'equipment' ? 'E-' : 'F-') + Utilities.getUuid().slice(0, 8));
+    const row = [id, item.type || 'festival', item.name || '', item.photo || '',
+      Number(item.qty) || 0, item.place || '', Number(item.price) || 0, item.memo || '', new Date(), item.label || ''];
+    if (existing) sh.getRange(existing.row, 1, 1, row.length).setValues([row]);
+    else sh.appendRow(row);
+    return getItem_(id);
+  } finally { lock.releaseLock(); }
+}
+
+function deleteItem_(id) {
+  const it = getItem_(id);
+  if (it) sheet_(getSS_(), 'items', ITEM_HEADERS).deleteRow(it.row);
+  return true;
+}
+
+function adjustStock_(id, delta, memo) {
+  const it = getItem_(id);
+  if (!it) throw new Error('未登録の商品です');
+  it.qty = Math.max(0, it.qty + Number(delta));
+  if (memo) it.memo = memo;
+  return saveItem_(it);
+}
+
+/** cart: [{id, qty}]  在庫を一括で引き落とし、売上を記録する */
+function checkout_(cart) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const ss = getSS_();
+    const items = sheet_(ss, 'items', ITEM_HEADERS);
+    const sales = sheet_(ss, 'sales', SALE_HEADERS);
+    const all = readItems_();
+    const slip = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMddHHmmss') + '-' + Utilities.getUuid().slice(0, 4);
+    const now = new Date();
+    const logs = [];
+    let total = 0;
+    // 先に全部検証してから書き込む
+    const plan = cart.map(c => {
+      const it = all.filter(x => x.id === c.id)[0];
+      if (!it) throw new Error('未登録の商品が含まれています: ' + c.id);
+      const q = Math.floor(Number(c.qty));
+      if (!(q > 0)) throw new Error('数量が不正です: ' + it.name);
+      if (it.qty < q) throw new Error('在庫不足: ' + it.name + '（残り' + it.qty + '個）');
+      return { it: it, q: q };
+    });
+    plan.forEach(p => {
+      items.getRange(p.it.row, 5).setValue(p.it.qty - p.q);
+      items.getRange(p.it.row, 9).setValue(now);
+      total += p.it.price * p.q;
+      logs.push([now, slip, p.it.id, p.it.name, p.q, p.it.price, p.it.price * p.q]);
+    });
+    if (logs.length) sales.getRange(sales.getLastRow() + 1, 1, logs.length, SALE_HEADERS.length).setValues(logs);
+    return { slip: slip, total: total };
+  } finally { lock.releaseLock(); }
+}
+
+function uploadPhoto_(base64, mime, name) {
+  const folder = DriveApp.getFolderById(PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER'));
+  const blob = Utilities.newBlob(Utilities.base64Decode(base64), mime, name || 'photo.jpg');
+  const file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w600';
+}
+
+function getSales_() {
+  const sh = sheet_(getSS_(), 'sales', SALE_HEADERS);
+  return sh.getDataRange().getValues().slice(1).map(r => [
+    Utilities.formatDate(new Date(r[0]), 'Asia/Tokyo', 'yyyy-MM-dd HH:mm:ss'), r[1], r[2], r[3], r[4], r[5], r[6]
+  ]);
+}
