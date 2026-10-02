@@ -310,7 +310,7 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp
 function thumb(it) {
   if (it.photo) return `<img class="thumb" src="${esc(it.photo)}" alt="">`;
   const h = [...String(it.id)].reduce((a, c) => a + c.charCodeAt(0), 0) % 6;
-  return `<div class="thumb tile t${h}">${esc((it.name || '?').slice(0, 1))}</div>`;
+  return `<div class="thumb tile t${h}">${esc(String(it.name || '?').slice(0, 1))}</div>`;
 }
 function flash() {
   document.querySelectorAll('.finder').forEach(f => { f.classList.add('hit'); setTimeout(() => f.classList.remove('hit'), 350); });
@@ -452,8 +452,9 @@ async function login() {
   try {
     if (!(await api('verifyPin', [], true))) { PIN = ''; return toast('PINが違います', true); }
     $('gate').classList.add('hidden'); $('panel').classList.remove('hidden');
-    renderList(); startScan('areader', onAdminScan);
-  } catch (e) { PIN = ''; toast(e.message, true); }
+  } catch (e) { PIN = ''; return toast(e.message, true); }
+  try { renderList(); } catch (e) { toast('一覧の表示でエラー: ' + e.message, true); }
+  startScan('areader', onAdminScan);
 }
 function onAdminScan(id) {
   const it = ITEMS.find(x => x.id === id);
