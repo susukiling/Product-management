@@ -244,8 +244,8 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
     <input type="hidden" id="eId">
     <div class="group">
       <div class="line"><span>種別</span><select id="eType"><option value="festival">文化祭（販売）</option><option value="equipment">パソコン部（備品）</option></select></div>
-      <div class="line"><span>名前</span><input id="eName" placeholder="必須"></div>
-      <div class="line"><span>QR名</span><input id="eLabel" placeholder="ラベルに印刷（空欄なら名前）"></div>
+      <div class="line"><span>名前</span><input id="eName" placeholder="必須" oninput="refreshQR()"></div>
+      <div class="line"><span>QR名</span><input id="eLabel" placeholder="QRに入れる名前（空欄なら名前）" oninput="refreshQR()"></div>
       <div class="line"><span>個数</span><input id="eQty" type="number" inputmode="numeric" value="1"></div>
       <div class="line"><span>単価（円）</span><input id="ePrice" type="number" inputmode="numeric" value="0"></div>
       <div class="line"><span>保管場所</span><input id="ePlace" placeholder="例: 部室の棚A"></div>
@@ -257,7 +257,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
     <div id="qrBox" class="group pad center hidden" style="margin-top:22px">
       <div id="qrCanvas" style="display:inline-block"></div>
       <div class="mute" id="qrId"></div>
-      <button class="link" onclick="openQR($('eId').value)">このQRを保存・印刷</button>
+      <button class="link" id="qrLink" onclick="openQR($('eId').value)">このQRを保存・印刷</button>
     </div>
     <button class="destr hidden" id="delBtn" onclick="removeItem()">この登録を削除</button>
   </div>
@@ -287,7 +287,7 @@ input::placeholder,textarea::placeholder{color:var(--sub);opacity:.8}
       <button class="btn" id="qrPrint" onclick="printItems(ITEMS.filter(x=>QSEL.has(x.id)))" disabled>印刷</button>
       <button class="btn sec" id="qrPng" onclick="qrPng()" disabled>画像で保存</button>
     </div>
-    <div class="mute" style="margin:10px 4px 0">QRの中身は商品IDです。印刷して商品や備品に貼ってください。</div>
+    <div class="mute" style="margin:10px 4px 0">QRの中身は「QR名（空欄なら名前）」です。ほかのアプリで読むとその名前が表示されます。</div>
   </div>
 </div>
 <div id="printArea"></div>
@@ -320,6 +320,8 @@ function setF(v) {
   document.querySelectorAll('#fseg button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
   renderList();
 }
+const qrText = x => x.label || x.name;   // QRに入れる文字列（他のアプリで読むとこの名前が表示される）
+const findByCode = c => ITEMS.find(x => qrText(x) === c) || ITEMS.find(x => x.id === c);  // 旧形式(ID)のQRも読める
 const CHEV = '<svg class="chev" width="8" height="14" viewBox="0 0 8 14"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 function api(fn, args, usePin) {
@@ -353,7 +355,7 @@ async function startScan(elId, onCode) {
     await scanner.start({ facingMode: 'environment' }, { fps: 10 }, code => {
       const now = Date.now();
       if (code === lastCode && now - lastAt < 1500) return; // 連続読み取りの防止
-      lastCode = code; lastAt = now; flash(); onCode(code.trim());
+      lastCode = code; lastAt = now; flash(); onCode(code.replace(/^\uFEFF/, '').trim());
     });
   } catch (e) { toast('カメラを起動できません: ' + (e.message || e), true); }
 }
@@ -370,15 +372,15 @@ async function go(which) {
 
 /* ---------- レジ ---------- */
 function onPosScan(id) {
-  const it = ITEMS.find(x => x.id === id);
+  const it = findByCode(id);
   if (!it) return toast('未登録のQRです', true);
   if (it.type === 'equipment') {
     $('equipInfo').innerHTML = `<div class="info"><b>${esc(it.name)}</b><br>保管場所: ${esc(it.place) || '未設定'}<br>状態・メモ: ${esc(it.memo) || 'なし'}<br>個数: ${it.qty}</div>`;
     return;
   }
-  const line = CART.find(c => c.id === id);
+  const line = CART.find(c => c.id === it.id);
   if ((line ? line.qty : 0) + 1 > it.qty) return toast(it.name + ' は在庫が足りません（残り' + it.qty + '個）', true);
-  if (line) line.qty++; else CART.push({ id, qty: 1 });
+  if (line) line.qty++; else CART.push({ id: it.id, qty: 1 });
   $('equipInfo').innerHTML = '';
   renderCart();
   toast('✓ ' + it.name + ' を追加');
@@ -433,8 +435,15 @@ async function login() {
   } catch (e) { PIN = ''; toast(e.message, true); }
 }
 function onAdminScan(id) {
-  const it = ITEMS.find(x => x.id === id);
-  if (it) openEditor(it); else { openEditor({ id: '', type: 'festival', qty: 1, price: 0 }); toast('未登録のQRです。新規登録できます'); }
+  const it = findByCode(id);
+  if (it) {
+    openEditor(it);
+    if (id !== qrText(it)) toast('旧形式のQRです。下のQRが新しい形式です', true);
+  } else {
+    // 未登録のQR: 読み取った文字をそのまま名前にして登録→同じQRを作れる
+    openEditor({ id: '', type: 'festival', name: id, label: '', photo: '', qty: 1, price: 0, place: '', memo: '' });
+    toast('未登録のQRです。このQRと同じものを登録できます');
+  }
 }
 function newItem() { openEditor({ id: '', type: 'festival', name: '', photo: '', qty: 1, price: 0, place: '', memo: '' }); }
 function openEditor(it) {
@@ -445,14 +454,16 @@ function openEditor(it) {
   $('eFile').value = ''; $('eFile').dataset.photo = it.photo || '';
   $('ePhotoPrev').src = it.photo || ''; $('ePhotoPrev').classList.toggle('hidden', !it.photo);
   $('delBtn').classList.toggle('hidden', !it.id);
-  showQR(it.id);
+  showQR(qrText(it));
+  $('qrLink').classList.toggle('hidden', !it.id);
 }
 function closeEditor() { $('editor').classList.add('hidden'); }
-function showQR(id) {
-  $('qrCanvas').innerHTML = ''; $('qrBox').classList.toggle('hidden', !id);
-  if (!id) return;
-  new QRCode($('qrCanvas'), { text: id, width: 160, height: 160 }); $('qrId').textContent = id;
+function showQR(text) {
+  $('qrCanvas').innerHTML = ''; $('qrBox').classList.toggle('hidden', !text);
+  if (!text) return;
+  new QRCode($('qrCanvas'), { text: text, width: 160, height: 160 }); $('qrId').textContent = 'QRの中身: ' + text;
 }
+function refreshQR() { showQR($('eLabel').value.trim() || $('eName').value.trim()); }
 function resizeImage(file, max) {
   return new Promise((resolve, reject) => {
     const img = new Image(), url = URL.createObjectURL(file);
@@ -466,6 +477,8 @@ function resizeImage(file, max) {
 }
 async function saveItem() {
   if (!$('eName').value.trim()) return toast('名前を入力してください', true);
+  const qt = $('eLabel').value.trim() || $('eName').value.trim();
+  if (ITEMS.find(x => x.id !== $('eId').value && qrText(x) === qt)) return toast('同じQR名の商品があります。QR名を変えてください', true);
   try {
     let photo = $('eFile').dataset.photo || '';
     const f = $('eFile').files[0];
@@ -497,7 +510,7 @@ function renderList() {
 }
 function findItems(t) {
   t = t.trim().toLowerCase(); if (!t) return [];
-  const ex = ITEMS.filter(x => x.id.toLowerCase() === t);
+  const ex = ITEMS.filter(x => x.id.toLowerCase() === t || qrText(x).toLowerCase() === t);
   return ex.length ? ex : ITEMS.filter(x => [x.name, x.label, x.id].join(' ').toLowerCase().includes(t));
 }
 function manual(kind) {
@@ -540,7 +553,7 @@ function renderQRPreview() {
   sel.forEach(x => {
     const d = document.createElement('div'); d.className = 'qrlabel';
     d.innerHTML = '<div class="qr"></div><div class="qn">' + esc(x.label || x.name) + '</div><div class="qs">' + esc(labelSub(x)) + '</div>';
-    new QRCode(d.firstChild, { text: x.id, width: 110, height: 110 }); box.appendChild(d);
+    new QRCode(d.firstChild, { text: qrText(x), width: 110, height: 110 }); box.appendChild(d);
   });
 }
 function fitText(g, t, max) {
@@ -555,7 +568,7 @@ function qrPng() {
   const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
   const tmp = document.createElement('div'), font = '"Hiragino Sans","Noto Sans JP",sans-serif';
   sel.forEach((x, i) => {
-    tmp.innerHTML = ''; new QRCode(tmp, { text: x.id, width: 300, height: 300 });
+    tmp.innerHTML = ''; new QRCode(tmp, { text: qrText(x), width: 300, height: 300 });
     const cv = tmp.querySelector('canvas'), ox = (i % cols) * W, oy = Math.floor(i / cols) * H;
     g.strokeStyle = '#999'; g.lineWidth = 2; g.setLineDash([8, 8]); g.strokeRect(ox + 8, oy + 8, W - 16, H - 16);
     g.drawImage(cv, ox + 30, oy + 24, 300, 300);
@@ -572,7 +585,7 @@ function printItems(list) {
   list.forEach(x => {
     const d = document.createElement('div'); d.className = 'qrlabel';
     d.innerHTML = '<div class="qr"></div><div><b>' + esc(x.label || x.name) + '</b></div><div>' + (x.type === 'festival' ? yen(x.price) : esc(x.place)) + '</div>';
-    new QRCode(d.firstChild, { text: x.id, width: 120, height: 120 }); area.appendChild(d);
+    new QRCode(d.firstChild, { text: qrText(x), width: 120, height: 120 }); area.appendChild(d);
   });
   setTimeout(() => window.print(), 300);
 }
